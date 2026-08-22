@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>3D Дом — прогулка</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#111;font-family:Arial,sans-serif}
+canvas{display:block}.panel{position:fixed;z-index:5;color:#fff;background:#101820cc;border:1px solid #ffffff18;border-radius:14px;padding:12px 14px;backdrop-filter:blur(8px)}
+#info{top:12px;left:12px;font-size:14px;line-height:1.45}#hint{bottom:12px;left:50%;transform:translateX(-50%);font-size:13px;text-align:center}
+#start{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:#0009}
+.card{width:min(90%,430px);background:#17202a;color:#fff;padding:28px;border-radius:20px;text-align:center;box-shadow:0 20px 80px #0008}
+button{border:0;border-radius:13px;padding:14px 22px;font-size:16px;font-weight:700;cursor:pointer}
+#mobile{display:none;position:fixed;z-index:10;inset:auto 12px 60px 12px;pointer-events:none}
+.pad{width:150px;height:150px;position:relative;pointer-events:auto}.b{position:absolute;width:52px;height:52px;border-radius:14px;background:#ffffffaa;color:#111;display:grid;place-items:center;font-weight:bold;user-select:none;touch-action:none}
+#f{left:49px;top:0}#b{left:49px;bottom:0}#l{left:0;top:49px}#r{right:0;top:49px}
+#turn{position:absolute;right:0;bottom:0;width:180px;height:150px;color:#fff;font-size:12px;display:flex;align-items:flex-end;justify-content:flex-end}
+@media(max-width:700px){#mobile{display:block}#hint{bottom:8px;font-size:11px}}
+</style>
+</head>
+<body>
+<div id="info" class="panel">🏡 <b>Деревянный дом</b><br>Участок • бассейн • прогулка</div>
+<div id="hint" class="panel">ПК: WASD + мышь • Shift — быстрее • Esc — отпустить мышь</div>
+<div id="mobile"><div class="pad">
+<div class="b" id="f">▲</div><div class="b" id="b">▼</div><div class="b" id="l">◀</div><div class="b" id="r">▶</div>
+</div><div id="turn">Води пальцем по правой части экрана, чтобы смотреть</div></div>
+<div id="start"><div class="card">
+<h1>3D-прогулка</h1><p>Зайди в дом, выйди на террасу и подойди к бассейну.</p>
+<button id="go">НАЧАТЬ</button><p><small>На iPhone есть сенсорное управление.</small></p>
+</div></div>
+
+<script type="module">
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+import {PointerLockControls} from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/PointerLockControls.js";
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x8fc8ee);
+scene.fog=new THREE.Fog(0x8fc8ee,35,100);
+const camera=new THREE.PerspectiveCamera(72,innerWidth/innerHeight,.1,200);
+camera.position.set(0,1.65,12);
+
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled=true;
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xe9f5ff,0x584332,2.1));
+const sun=new THREE.DirectionalLight(0xfff1d2,3);
+sun.position.set(-12,22,12);sun.castShadow=true;scene.add(sun);
+
+const M={
+grass:new THREE.MeshStandardMaterial({color:0x3f7438}),
+wood:new THREE.MeshStandardMaterial({color:0x986039}),
+dark:new THREE.MeshStandardMaterial({color:0x4b3022}),
+roof:new THREE.MeshStandardMaterial({color:0x252525}),
+stone:new THREE.MeshStandardMaterial({color:0x898982}),
+water:new THREE.MeshStandardMaterial({color:0x1599d0,metalness:.05,roughness:.18}),
+glass:new THREE.MeshPhysicalMaterial({color:0x9edfff,transparent:true,opacity:.42,roughness:.08}),
+white:new THREE.MeshStandardMaterial({color:0xd9d0c0})
+};
+function box(x,y,z,sx,sy,sz,m,cast=true){const o=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),m);o.position.set(x,y,z);o.castShadow=cast;o.receiveShadow=true;scene.add(o);return o}
+function cyl(x,y,z,r,h,m){const o=new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,16),m);o.position.set(x,y,z);o.castShadow=true;scene.add(o);return o}
+
+// compact 70 m² concept
+box(0,-.15,0,8.4,.3,8.4,M.grass,false);
+
+// house
+box(0,1.5,-.7,5,.3,7,M.wood);
+box(-2.38,2.8,-.7,.16,2.8,7,M.dark);
+box(2.38,2.8,-.7,.16,2.8,7,M.dark);
+box(0,4.12,-.7,5,.18,7,M.dark);
+
+// pitched roof
+for(const side of [-1,1]){
+ const r=box(side*1.42,5.0,-.7,5.8,.18,7.5,M.roof);
+ r.rotation.z=side*.58;
+}
+
+// windows/front doors
+box(0,1.9,2.79,2.25,2.45,.08,M.glass,false);
+box(-1.62,1.9,2.79,.95,2.45,.08,M.glass,false);
+box(1.62,1.9,2.79,.95,2.45,.08,M.glass,false);
+
+// interior
+box(0,.18,-.7,4.6,.1,6.6,M.dark,false);
+box(-1.1,1.0,-1.2,1.7,.65,.8,M.white);
+box(-1.1,1.42,-1.2,1.75,.08,.82,M.white);
+box(1.1,.8,-1.5,1.5,.7,.75,M.dark);
+
+// bed
+box(0,.55,-3.05,2.0,.45,2.3,M.white);
+box(0,1.05,-3.95,2.0,.65,.15,M.dark);
+
+// deck + pergola
+box(0,.12,3.35,5.8,.25,1.55,M.dark);
+for(const x of [-2.7,2.7])for(const z of [2.5,4.0])cyl(x,1.55,z,.09,3,M.dark);
+box(0,3.05,3.25,5.8,.16,2.6,M.dark);
+
+// pool
+box(0,.03,5.65,3.2,.18,2.5,M.stone,false);
+box(0,.13,5.65,2.72,.06,2.02,M.water,false);
+
+// path
+for(let i=-3;i<=3;i++)box(i*.7,.04,2.55,.55,.06,.42,M.stone,false);
+
+// fence
+for(let x=-4.1;x<=4.1;x+=.8){box(x,1,-4.05,.55,2,.12,M.wood);box(x,1,8.05,.55,2,.12,M.wood)}
+for(let z=-3.25;z<=7.25;z+=.8){box(-4.05,1,z,.12,2,.55,M.wood);box(4.05,1,z,.12,2,.55,M.wood)}
+
+// trees
+for(const [x,z] of [[-3.4,-3],[3.4,-3],[-3.3,7],[3.3,7]]){
+ cyl(x,1,z,.15,2,M.dark);
+ const c=new THREE.Mesh(new THREE.SphereGeometry(.9,16,12),M.grass);c.position.set(x,2.2,z);c.castShadow=true;scene.add(c);
+}
+
+const controls=new PointerLockControls(camera,document.body);
+let started=false;
+document.getElementById("go").onclick=()=>{started=true;document.getElementById("start").style.display="none";if(innerWidth>700)controls.lock()};
+
+const keys={};
+addEventListener("keydown",e=>keys[e.code]=true);
+addEventListener("keyup",e=>keys[e.code]=false);
+
+// iPhone movement
+function bind(id,code){
+ const el=document.getElementById(id);
+ const on=e=>{e.preventDefault();keys[code]=true};
+ const off=e=>{e.preventDefault();keys[code]=false};
+ el.addEventListener("touchstart",on,{passive:false});el.addEventListener("touchend",off,{passive:false});el.addEventListener("touchcancel",off,{passive:false});
+}
+bind("f","KeyW");bind("b","KeyS");bind("l","KeyA");bind("r","KeyD");
+
+let lastX=null,lastY=null;
+addEventListener("touchstart",e=>{if(!started)return;if(e.touches.length===1&&e.touches[0].clientX>innerWidth*.45){lastX=e.touches[0].clientX;lastY=e.touches[0].clientY}});
+addEventListener("touchmove",e=>{
+ if(!started||e.touches.length!==1||lastX===null)return;
+ const t=e.touches[0],dx=t.clientX-lastX,dy=t.clientY-lastY;
+ camera.rotation.y-=dx*.004;camera.rotation.x-=dy*.003;
+ camera.rotation.x=Math.max(-1.35,Math.min(1.35,camera.rotation.x));
+ lastX=t.clientX;lastY=t.clientY;
+},{passive:false});
+addEventListener("touchend",()=>{lastX=lastY=null});
+
+function animate(){
+ requestAnimationFrame(animate);
+ const speed=(keys.ShiftLeft||keys.ShiftRight)?.11:.055;
+ if(started){
+  const dir=new THREE.Vector3();
+  if(keys.KeyW)dir.z-=1;if(keys.KeyS)dir.z+=1;if(keys.KeyA)dir.x-=1;if(keys.KeyD)dir.x+=1;
+  if(dir.lengthSq()) {dir.normalize();const yaw=camera.rotation.y;const x=dir.x*Math.cos(yaw)-dir.z*Math.sin(yaw);const z=dir.x*Math.sin(yaw)+dir.z*Math.cos(yaw);camera.position.x+=x*speed;camera.position.z+=z*speed;}
+  camera.position.y=1.65;
+ }
+ renderer.render(scene,camera);
+}
+animate();
+addEventListener("resize",()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+</script>
+</body></html>
